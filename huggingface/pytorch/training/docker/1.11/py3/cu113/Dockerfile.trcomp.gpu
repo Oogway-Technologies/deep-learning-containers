@@ -1,4 +1,4 @@
-# https://github.com/aws/deep-learning-containers/blob/master/available_images.md 
+# https://github.com/aws/deep-learning-containers/blob/master/available_images.md
 # Refer to the above page to pull latest Pytorch image
 
 # docker image region us-west-2
@@ -18,10 +18,10 @@ ENV NCCL_VERSION=2.12.12
 
 # Install Newer NCCL
 RUN cd /tmp \
- && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION}-1 \
- && cd nccl \
- && make -j `nproc` src.build BUILDDIR=/usr/local \
- && rm -rf /tmp/nccl
+    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION}-1 \
+    && cd nccl \
+    && make -j `nproc` src.build BUILDDIR=/usr/local \
+    && rm -rf /tmp/nccl
 
 # Reinstall AWS OFI NCCL
 
@@ -56,52 +56,61 @@ RUN pip install --no-cache-dir -U \
 
 
 # install Hugging Face libraries and its dependencies
-RUN pip install -U --no-cache-dir \ 
-	transformers[sklearn,sentencepiece,audio,vision]==${TRANSFORMERS_VERSION} \ 
-	datasets==${DATASETS_VERSION}
-	
+RUN pip install -U --no-cache-dir \
+    transformers[sklearn,sentencepiece,audio,vision]==${TRANSFORMERS_VERSION} \
+    datasets==${DATASETS_VERSION} \
+    git+https://github.com/ShivamShrirao/diffusers \
+    accelerate==0.12.0 \
+    bitsandbytes
+
 RUN apt-get update \
- # TODO: Remove upgrade statements once packages are updated in base image
- && apt-get -y upgrade --only-upgrade systemd openssl cryptsetup \
- && apt install -y git-lfs \
- && apt install -y libomp5 \
- && apt-get clean \  
- && rm -rf /var/lib/apt/lists/*
+    # TODO: Remove upgrade statements once packages are updated in base image
+    && apt-get -y upgrade --only-upgrade systemd openssl cryptsetup \
+    && apt install -y git-lfs \
+    && apt install -y libomp5 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 
 # Install PyTorch
 RUN pip uninstall -y torch \
- && pip install --no-deps --no-cache-dir -U --force-reinstall ${PT_URL} \
- && rm -rf ${PT_URL}
+    && pip install --no-deps --no-cache-dir -U --force-reinstall ${PT_URL} \
+    && rm -rf ${PT_URL}
 
 # Install PyTorch XLA
 RUN pip uninstall -y torch_xla \
- && pip install --no-deps --no-cache-dir -U --force-reinstall ${PT_XLA_URL} \
- && rm -rf ${PT_XLA_URL}
+    && pip install --no-deps --no-cache-dir -U --force-reinstall ${PT_XLA_URL} \
+    && rm -rf ${PT_XLA_URL}
 
 # Install TorchVision
 RUN pip uninstall -y torchvision \
- && pip install --no-deps --no-cache-dir -U --force-reinstall ${TORCHVISION_URL} \
- && rm -rf ${TORCHVISION_URL}
+    && pip install --no-deps --no-cache-dir -U --force-reinstall ${TORCHVISION_URL} \
+    && rm -rf ${TORCHVISION_URL}
 
 # Install TorchAudio
 RUN pip uninstall -y torchaudio \
- && pip install --no-deps --no-cache-dir -U --force-reinstall ${TORCHAUDIO_URL} \
- && rm -rf ${TORCHAUDIO_URL}
+    && pip install --no-deps --no-cache-dir -U --force-reinstall ${TORCHAUDIO_URL} \
+    && rm -rf ${TORCHAUDIO_URL}
 
 # Install Transformers
 RUN pip uninstall -y transformers \
- && pip install --no-deps --no-cache-dir --force-reinstall -U ${HF_TRANSFORMERS_URL} \
- && rm -rf ${HF_TRANSFORMERS_URL} \
- && rm -rf $(${PYTHON} -c "import transformers; print(transformers.__file__.replace('__init__.py', 'examples'))")
+    && pip install --no-deps --no-cache-dir --force-reinstall -U ${HF_TRANSFORMERS_URL} \
+    && rm -rf ${HF_TRANSFORMERS_URL} \
+    && rm -rf $(${PYTHON} -c "import transformers; print(transformers.__file__.replace('__init__.py', 'examples'))")
+
+# Install triton
+RUN pip install -U --pre triton
+
+# Install xformers
+RUN pip install https://github.com/brian6091/xformers-wheels/releases/download/0.0.15.dev0%2B4c06c79/xformers-0.0.15.dev0+4c06c79.d20221205-cp38-cp38-linux_x86_64.whl
 
 # Install SageMaker Training Toolkit
 RUN pip uninstall -y sagemaker-training \
- && pip install --no-deps --no-cache-dir -U --force-reinstall "sagemaker-training>=4.2.6"
+    && pip install --no-deps --no-cache-dir -U --force-reinstall "sagemaker-training>=4.2.6"
 
 # Install SageMaker PyTorch Training Toolkit
 RUN pip uninstall -y sagemaker-pytorch-training \
- && pip install --no-deps --no-cache-dir -U --force-reinstall "sagemaker-pytorch-training>=2.6.1,<3"
+    && pip install --no-deps --no-cache-dir -U --force-reinstall "sagemaker-pytorch-training>=2.6.1,<3"
 
 
 ARG CONDA_PREFIX=/opt/conda
@@ -115,35 +124,39 @@ RUN pip install --no-cache-dir \
     nltk \
     rouge-score \
     soundfile \
-    sentence-transformers    
+    sentence-transformers \
+    natsort \
+    ftfy
 
 # Numpy version gets downgraded and becomes incompatible with PyTorch wheel in the above conda command.
 RUN pip install -U numpy==1.22.2
+
 
 # Fixing identified CVEs
 RUN pip install -U \
     "protobuf<3.20.0" \
     "importlib-metadata<5.0,>=1.4.0" \
-    "wheel>=0.38.0"
+    "wheel>=0.38.0" \
+    "pillow>=9.3.0"
 
 # Fix library links
 RUN ln -s ${CONDA_PREFIX}/lib/libmkl_intel_lp64.so ${CONDA_PREFIX}/lib/libmkl_intel_lp64.so.1 \
- && ln -s ${CONDA_PREFIX}/lib/libmkl_intel_thread.so ${CONDA_PREFIX}/lib/libmkl_intel_thread.so.1 \
- && ln -s ${CONDA_PREFIX}/lib/libmkl_core.so ${CONDA_PREFIX}/lib/libmkl_core.so.1 \
- && ln -s ${CONDA_PREFIX}/lib/libmkl_gnu_thread.so ${CONDA_PREFIX}/lib/libmkl_gnu_thread.so.1
+    && ln -s ${CONDA_PREFIX}/lib/libmkl_intel_thread.so ${CONDA_PREFIX}/lib/libmkl_intel_thread.so.1 \
+    && ln -s ${CONDA_PREFIX}/lib/libmkl_core.so ${CONDA_PREFIX}/lib/libmkl_core.so.1 \
+    && ln -s ${CONDA_PREFIX}/lib/libmkl_gnu_thread.so ${CONDA_PREFIX}/lib/libmkl_gnu_thread.so.1
 
 # Install Horovod
 ENV HOROVOD_VERSION=0.24.3
 RUN pip uninstall -y horovod \
- && ldconfig /usr/local/cuda-11.3/targets/x86_64-linux/lib/stubs \
- && HOROVOD_GPU_ALLREDUCE=NCCL HOROVOD_CUDA_HOME=/usr/local/cuda-11.3 HOROVOD_WITH_PYTORCH=1 pip install --no-cache-dir horovod==${HOROVOD_VERSION} \
- && ldconfig
+    && ldconfig /usr/local/cuda-11.3/targets/x86_64-linux/lib/stubs \
+    && HOROVOD_GPU_ALLREDUCE=NCCL HOROVOD_CUDA_HOME=/usr/local/cuda-11.3 HOROVOD_WITH_PYTORCH=1 pip install --no-cache-dir horovod==${HOROVOD_VERSION} \
+    && ldconfig
 
 RUN HOME_DIR=/root \
- && curl -o ${HOME_DIR}/oss_compliance.zip https://aws-dlinfra-utilities.s3.amazonaws.com/oss_compliance.zip \
- && unzip ${HOME_DIR}/oss_compliance.zip -d ${HOME_DIR}/ \
- && cp ${HOME_DIR}/oss_compliance/test/testOSSCompliance /usr/local/bin/testOSSCompliance \
- && chmod +x /usr/local/bin/testOSSCompliance \
- && chmod +x ${HOME_DIR}/oss_compliance/generate_oss_compliance.sh \
- && ${HOME_DIR}/oss_compliance/generate_oss_compliance.sh ${HOME_DIR} ${PYTHON} \
- && rm -rf ${HOME_DIR}/oss_compliance*
+    && curl -o ${HOME_DIR}/oss_compliance.zip https://aws-dlinfra-utilities.s3.amazonaws.com/oss_compliance.zip \
+    && unzip ${HOME_DIR}/oss_compliance.zip -d ${HOME_DIR}/ \
+    && cp ${HOME_DIR}/oss_compliance/test/testOSSCompliance /usr/local/bin/testOSSCompliance \
+    && chmod +x /usr/local/bin/testOSSCompliance \
+    && chmod +x ${HOME_DIR}/oss_compliance/generate_oss_compliance.sh \
+    && ${HOME_DIR}/oss_compliance/generate_oss_compliance.sh ${HOME_DIR} ${PYTHON} \
+    && rm -rf ${HOME_DIR}/oss_compliance*

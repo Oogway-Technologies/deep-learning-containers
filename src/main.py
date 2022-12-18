@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--device_types", type=str, default=constants.ALL)
     parser.add_argument("--image_types", type=str, default=constants.ALL)
     parser.add_argument("--py_versions", type=str, default=constants.ALL)
+    parser.add_argument("--profile", type=str)
 
     args = parser.parse_args()
 
@@ -25,7 +26,7 @@ def main():
 
     if args.device_types != constants.ALL:
         device_types = args.device_types.split(",")
-        
+
     if args.image_types != constants.ALL:
         image_types = args.image_types.split(",")
 
@@ -38,7 +39,9 @@ def main():
     neuron_dedicated = os.getenv("NEURON_DEDICATED", "false").lower() == "true"
     graviton_dedicated = os.getenv("GRAVITON_DEDICATED", "false").lower() == "true"
     habana_dedicated = os.getenv("HABANA_DEDICATED", "false").lower() == "true"
-    hf_trcomp_dedicated = os.getenv("HUGGINFACE_TRCOMP_DEDICATED", "false").lower() == "true"
+    hf_trcomp_dedicated = (
+        os.getenv("HUGGINFACE_TRCOMP_DEDICATED", "false").lower() == "true"
+    )
     trcomp_dedicated = os.getenv("TRCOMP_DEDICATED", "false").lower() == "true"
 
     # Get config value options
@@ -77,22 +80,44 @@ def main():
         and args.framework not in frameworks_to_skip
     )
     # An EI dedicated builder will work if in EI mode and its framework not been disabled
-    ei_builder_enabled = ei_dedicated and ei_build_mode and args.framework not in frameworks_to_skip
+    ei_builder_enabled = (
+        ei_dedicated and ei_build_mode and args.framework not in frameworks_to_skip
+    )
 
     # A NEURON dedicated builder will work if in NEURON mode and its framework has not been disabled
-    neuron_builder_enabled = neuron_dedicated and neuron_build_mode and args.framework not in frameworks_to_skip
+    neuron_builder_enabled = (
+        neuron_dedicated
+        and neuron_build_mode
+        and args.framework not in frameworks_to_skip
+    )
 
     # A GRAVITON dedicated builder will work if in GRAVITON mode and its framework has not been disabled
-    graviton_builder_enabled = graviton_dedicated and graviton_build_mode and args.framework not in frameworks_to_skip
+    graviton_builder_enabled = (
+        graviton_dedicated
+        and graviton_build_mode
+        and args.framework not in frameworks_to_skip
+    )
 
     # A HABANA dedicated builder will work if in HABANA mode and its framework has not been disabled
-    habana_builder_enabled = habana_dedicated and habana_build_mode and args.framework not in frameworks_to_skip
+    habana_builder_enabled = (
+        habana_dedicated
+        and habana_build_mode
+        and args.framework not in frameworks_to_skip
+    )
 
     # A HUGGINGFACE TRCOMP dedicated builder will work if in HUGGINGFACE TRCOMP mode and its framework has not been disabled.
-    hf_trcomp_builder_enabled = hf_trcomp_dedicated and hf_trcomp_build_mode and args.framework not in frameworks_to_skip
+    hf_trcomp_builder_enabled = (
+        hf_trcomp_dedicated
+        and hf_trcomp_build_mode
+        and args.framework not in frameworks_to_skip
+    )
 
     # A TRCOMP dedicated builder will work if in TRCOMP mode and its framework has not been disabled.
-    trcomp_builder_enabled = trcomp_dedicated and trcomp_build_mode and args.framework not in frameworks_to_skip
+    trcomp_builder_enabled = (
+        trcomp_dedicated
+        and trcomp_build_mode
+        and args.framework not in frameworks_to_skip
+    )
 
     buildspec_file = get_buildspec_override() or args.buildspec
 
@@ -108,9 +133,12 @@ def main():
         or build_context != "PR"
     ):
         utils.build_setup(
-            args.framework, device_types=device_types, image_types=image_types, py_versions=py_versions,
+            args.framework,
+            device_types=device_types,
+            image_types=image_types,
+            py_versions=py_versions,
         )
-        image_builder(buildspec_file, image_types, device_types)
+        image_builder(buildspec_file, image_types, device_types, args.profile)
 
 
 if __name__ == "__main__":
